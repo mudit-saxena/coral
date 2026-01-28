@@ -3,6 +3,7 @@ apply from: "spark_itest.gradle"
 dependencies {
   compile project(':coral-hive')
   compile project(':coral-schema')
+  compile project(':coral-trino')
 
 
   compileOnly deps.'spark'.'sql'

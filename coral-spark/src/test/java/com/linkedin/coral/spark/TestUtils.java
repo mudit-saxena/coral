@@ -24,6 +24,7 @@ import com.linkedin.coral.common.HiveMetastoreClient;
 import com.linkedin.coral.common.HiveMscAdapter;
 import com.linkedin.coral.hive.hive2rel.HiveToRelConverter;
 import com.linkedin.coral.schema.avro.ViewToAvroSchemaConverter;
+import com.linkedin.coral.trino.trino2rel.TrinoToRelConverter;
 
 
 public class TestUtils {
@@ -34,6 +35,8 @@ public class TestUtils {
   static HiveToRelConverter hiveToRelConverter;
   static ViewToAvroSchemaConverter viewToAvroSchemaConverter;
   static HiveMetastoreClient hiveMetastoreClient;
+  static TrinoToRelConverter trinoToRelConverter;
+  static TrinoToSparkConverter trinoToSparkConverter;
 
   static void run(Driver driver, String sql) {
     while (true) {
@@ -55,6 +58,8 @@ public class TestUtils {
     hiveMetastoreClient = new HiveMscAdapter(Hive.get(conf).getMSC());
     hiveToRelConverter = new HiveToRelConverter(hiveMetastoreClient);
     viewToAvroSchemaConverter = ViewToAvroSchemaConverter.create(hiveMetastoreClient);
+    trinoToRelConverter = new TrinoToRelConverter(hiveMetastoreClient);
+    trinoToSparkConverter = TrinoToSparkConverter.create(hiveMetastoreClient);
     run(driver, "CREATE TABLE IF NOT EXISTS foo(a int, b varchar(30), c double)");
     run(driver, "CREATE TABLE IF NOT EXISTS bar(x int, y double)");
     run(driver, "CREATE TABLE IF NOT EXISTS baz(`timestamp` int, `select` double)");
@@ -289,5 +294,17 @@ public class TestUtils {
 
   public static HiveMetastoreClient getHiveMetastoreClient() {
     return hiveMetastoreClient;
+  }
+
+  public static TrinoToRelConverter getTrinoToRelConverter() {
+    return trinoToRelConverter;
+  }
+
+  public static TrinoToSparkConverter getTrinoToSparkConverter() {
+    return trinoToSparkConverter;
+  }
+
+  public static RelNode trinoSqlToRelNode(String trinoSql) {
+    return trinoToRelConverter.convertSql(trinoSql);
   }
 }
