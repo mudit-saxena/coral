@@ -9,8 +9,8 @@ import org.apache.calcite.rel.RelNode;
 
 import com.linkedin.coral.hive.hive2rel.HiveToRelConverter;
 import com.linkedin.coral.spark.CoralSpark;
+import com.linkedin.coral.spark.TrinoToSparkConverter;
 import com.linkedin.coral.trino.rel2trino.RelToTrinoConverter;
-import com.linkedin.coral.trino.trino2rel.TrinoToRelConverter;
 
 import static com.linkedin.coral.coralservice.utils.CoralProvider.*;
 
@@ -18,9 +18,8 @@ import static com.linkedin.coral.coralservice.utils.CoralProvider.*;
 public class TranslationUtils {
 
   public static String translateTrinoToSpark(String query) {
-    RelNode relNode = new TrinoToRelConverter(hiveMetastoreClient).convertSql(query);
-    CoralSpark coralSpark = CoralSpark.create(relNode, hiveMetastoreClient);
-    return coralSpark.getSparkSql();
+    TrinoToSparkConverter converter = TrinoToSparkConverter.create(hiveMetastoreClient);
+    return converter.toSparkSql(query);
   }
 
   public static String translateHiveToTrino(String query) {

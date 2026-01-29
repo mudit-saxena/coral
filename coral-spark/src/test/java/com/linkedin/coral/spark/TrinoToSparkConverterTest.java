@@ -552,4 +552,177 @@ public class TrinoToSparkConverterTest {
     assertTrue(sparkSql.contains("WHERE"));
   }
   */
+
+  // ==================== Complex Query Tests ====================
+  // Tests combining JOIN, functions, and subqueries
+
+  @Test
+  public void testComplexQueryWithJoinFunctionSubselect() {
+    // Complex query combining:
+    // 1. Subselect with function (substr, concat)
+    // 2. JOIN between subquery and table
+    // 3. WHERE clause with comparison
+    // 4. Multiple function transformations
+    String trinoSql = "SELECT "
+        + "\"t\".\"processed_b\", "
+        + "\"bar\".\"x\", "
+        + "concat(\"t\".\"processed_b\", '-', CAST(\"bar\".\"y\" AS VARCHAR)) AS \"combined\" "
+        + "FROM ("
+        + "  SELECT \"foo\".\"a\", substr(\"foo\".\"b\", 1, 5) AS \"processed_b\" "
+        + "  FROM \"default\".\"foo\" "
+        + "  WHERE \"foo\".\"a\" > 0"
+        + ") AS \"t\" "
+        + "INNER JOIN \"default\".\"bar\" AS \"bar\" ON \"t\".\"a\" = \"bar\".\"x\" "
+        + "WHERE length(\"t\".\"processed_b\") > 2";
+    String sparkSql = getTrinoToSparkConverter().toSparkSql(trinoSql);
+
+    assertNotNull(sparkSql);
+    // Verify JOIN is present
+    assertTrue(sparkSql.contains("JOIN"));
+    // Verify functions are transformed
+    assertTrue(sparkSql.toLowerCase().contains("substr"));
+    assertTrue(sparkSql.toLowerCase().contains("concat"));
+    assertTrue(sparkSql.toLowerCase().contains("length") || sparkSql.toLowerCase().contains("char_length"));
+    // Verify subquery structure
+    assertTrue(sparkSql.contains("FROM"));
+    // Verify WHERE conditions
+    assertTrue(sparkSql.contains("> 0") || sparkSql.contains(">0"));
+    assertTrue(sparkSql.contains("> 2") || sparkSql.contains(">2"));
+  }
+
+  @Test
+  public void testComplexQueryWithCardinalityAndJoin() {
+    // Complex query with:
+    // 1. Subquery with array construction
+    // 2. Array size function (cardinality -> size)
+    // 3. JOIN with results
+    String trinoSql = "SELECT "
+        + "\"t\".\"a\", "
+        + "cardinality(ARRAY[1, 2, 3, 4, 5]) AS \"fixed_size\", "
+        + "\"bar\".\"y\" "
+        + "FROM ("
+        + "  SELECT \"foo\".\"a\", \"foo\".\"b\" "
+        + "  FROM \"default\".\"foo\" "
+        + "  WHERE \"foo\".\"a\" > 0"
+        + ") AS \"t\" "
+        + "LEFT JOIN \"default\".\"bar\" AS \"bar\" ON \"t\".\"a\" = \"bar\".\"x\"";
+    String sparkSql = getTrinoToSparkConverter().toSparkSql(trinoSql);
+
+    assertNotNull(sparkSql);
+    // Verify cardinality transformed to size
+    assertTrue(sparkSql.toLowerCase().contains("size"));
+    // Verify JOIN
+    assertTrue(sparkSql.contains("LEFT JOIN"));
+    // Verify subquery
+    assertTrue(sparkSql.contains("FROM"));
+    assertTrue(sparkSql.contains("> 0") || sparkSql.contains(">0"));
+  }
+
+  @Test
+  public void testComplexQueryWithNestedFunctions() {
+    // Query with nested function calls and CASE expression
+    String trinoSql = "SELECT "
+        + "\"foo\".\"a\", "
+        + "CASE "
+        + "  WHEN length(\"foo\".\"b\") > 5 THEN upper(substr(\"foo\".\"b\", 1, 3)) "
+        + "  ELSE lower(\"foo\".\"b\") "
+        + "END AS \"formatted_b\", "
+        + "concat(CAST(\"foo\".\"a\" AS VARCHAR), '-', trim(\"foo\".\"b\")) AS \"combined\" "
+        + "FROM \"default\".\"foo\" "
+        + "WHERE \"foo\".\"a\" BETWEEN 1 AND 100";
+    String sparkSql = getTrinoToSparkConverter().toSparkSql(trinoSql);
+
+    assertNotNull(sparkSql);
+    // Verify CASE expression
+    assertTrue(sparkSql.contains("CASE"));
+    assertTrue(sparkSql.contains("WHEN"));
+    assertTrue(sparkSql.contains("THEN"));
+    assertTrue(sparkSql.contains("ELSE"));
+    // Verify nested functions
+    assertTrue(sparkSql.toLowerCase().contains("upper"));
+    assertTrue(sparkSql.toLowerCase().contains("lower"));
+    assertTrue(sparkSql.toLowerCase().contains("substr"));
+    assertTrue(sparkSql.toLowerCase().contains("trim"));
+    assertTrue(sparkSql.toLowerCase().contains("concat"));
+    // Verify BETWEEN (may be expanded to >= AND <=)
+    assertTrue(sparkSql.contains("BETWEEN") || (sparkSql.contains(">= 1") && sparkSql.contains("<= 100")));
+  }
+
+  @Test
+  public void testComplexQueryWithMultipleJoins() {
+    // Query with multiple JOINs and functions across tables
+    String trinoSql = "SELECT "
+        + "\"f\".\"a\", "
+        + "\"b1\".\"x\" AS \"x1\", "
+        + "\"b2\".\"x\" AS \"x2\", "
+        + "concat(\"f\".\"b\", '-', CAST(\"b1\".\"y\" AS VARCHAR), '-', CAST(\"b2\".\"y\" AS VARCHAR)) AS \"merged\" "
+        + "FROM \"default\".\"foo\" AS \"f\" "
+        + "INNER JOIN \"default\".\"bar\" AS \"b1\" ON \"f\".\"a\" = \"b1\".\"x\" "
+        + "LEFT JOIN \"default\".\"bar\" AS \"b2\" ON \"f\".\"a\" = \"b2\".\"x\" + 1 "
+        + "WHERE \"f\".\"a\" > 0 AND \"b1\".\"y\" IS NOT NULL";
+    String sparkSql = getTrinoToSparkConverter().toSparkSql(trinoSql);
+
+    assertNotNull(sparkSql);
+    // Verify multiple JOINs
+    assertTrue(sparkSql.contains("INNER JOIN") || sparkSql.contains("JOIN"));
+    assertTrue(sparkSql.contains("LEFT JOIN"));
+    // Verify concat function
+    assertTrue(sparkSql.toLowerCase().contains("concat"));
+    // Verify WHERE conditions
+    assertTrue(sparkSql.contains("AND"));
+    assertTrue(sparkSql.contains("IS NOT NULL"));
+  }
+
+  @Test
+  public void testTrinoFunctionsCardinalityAndStrpos() {
+    // Test query combining multiple Trino-specific functions:
+    // 1. cardinality(array) -> size(array)
+    // 2. strpos(string, substring) -> instr(string, substring)
+    String trinoSql = "SELECT "
+        + "\"foo\".\"a\", "
+        + "strpos(\"foo\".\"b\", 'test') AS \"pos\", "
+        + "cardinality(ARRAY[1, 2, 3, 4]) AS \"length\" "
+        + "FROM \"default\".\"foo\" "
+        + "WHERE \"foo\".\"a\" > 0";
+    System.out.println("Input Trino SQL: " + trinoSql);
+    String sparkSql = getTrinoToSparkConverter().toSparkSql(trinoSql);
+    System.out.println("Converted Spark SQL: " + sparkSql);
+    assertNotNull(sparkSql);
+    // Verify cardinality transformed to size
+    assertTrue(sparkSql.toLowerCase().contains("size"));
+    // Verify strpos transformed to instr
+    assertTrue(sparkSql.toLowerCase().contains("instr"));
+    // Verify WHERE clause
+    assertTrue(sparkSql.contains("> 0") || sparkSql.contains(">0"));
+  }
+
+  @Test
+  public void testTrinoFunctionsWithComplexTable() {
+    // Test using cardinality on an actual array column from complex table
+    // complex table schema: a int, b string, c array<double>, ...
+    String trinoSql = "SELECT "
+        + "\"complex\".\"a\", "
+        + "\"complex\".\"b\", "
+        + "cardinality(\"complex\".\"c\") AS \"array_length\", "
+        + "strpos(\"complex\".\"b\", 'search') AS \"found_pos\" "
+        + "FROM \"default\".\"complex\" "
+        + "WHERE cardinality(\"complex\".\"c\") > 2";
+    String sparkSql = getTrinoToSparkConverter().toSparkSql(trinoSql);
+
+    assertNotNull(sparkSql);
+    // Verify cardinality transformed to size (should appear twice - SELECT and WHERE)
+    String lowerSql = sparkSql.toLowerCase();
+    int sizeCount = lowerSql.split("size").length - 1;
+    assertTrue(sizeCount >= 2, "Expected at least 2 occurrences of 'size', found: " + sizeCount);
+    // Verify strpos transformed to instr
+    assertTrue(lowerSql.contains("instr"));
+    // Verify WHERE clause
+    assertTrue(sparkSql.contains("> 2") || sparkSql.contains(">2"));
+  }
+
+  // TODO: array_agg aggregate function support requires additional work
+  // to properly register it as an aggregate function in the Trino SQL validator.
+  // The transformation mapping (array_agg -> collect_list) is defined in
+  // Trino2CoralOperatorTransformerMap, but the function needs to be recognized
+  // as an aggregate during SQL validation.
 }

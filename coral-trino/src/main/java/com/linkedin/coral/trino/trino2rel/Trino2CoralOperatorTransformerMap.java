@@ -141,9 +141,9 @@ public class Trino2CoralOperatorTransformerMap {
 
     // Aggregation functions
     // array_agg(col) -> collect_list(col)
-    createTransformerMapEntry(TRANSFORMER_MAP,
-        createOperator("array_agg", FunctionReturnTypes.ARRAY_OF_ARG0_TYPE, family(SqlTypeFamily.ANY)), 1,
-        "collect_list");
+    // Note: array_agg is registered as an aggregate function so it's recognized in GROUP BY contexts
+    createAggTransformerMapEntry(TRANSFORMER_MAP, "array_agg", FunctionReturnTypes.ARRAY_OF_ARG0_TYPE,
+        family(SqlTypeFamily.ANY), 1, "collect_list");
 
     // Regex functions
     // regexp_like(str, pattern) -> rlike(str, pattern)
