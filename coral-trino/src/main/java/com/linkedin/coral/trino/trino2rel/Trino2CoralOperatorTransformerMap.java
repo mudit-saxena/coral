@@ -133,6 +133,22 @@ public class Trino2CoralOperatorTransformerMap {
         createOperator("date_diff", ReturnTypes.INTEGER,
             family(SqlTypeFamily.STRING, SqlTypeFamily.DATETIME, SqlTypeFamily.DATETIME)),
         3, "datediff", "[{\"input\": 3}, {\"input\": 2}]", null);
+
+    // Array functions
+    // cardinality(array) -> size(array)
+    createTransformerMapEntry(TRANSFORMER_MAP,
+        createOperator("cardinality", ReturnTypes.INTEGER, family(SqlTypeFamily.ARRAY)), 1, "size");
+
+    // Aggregation functions
+    // array_agg(col) -> collect_list(col)
+    createTransformerMapEntry(TRANSFORMER_MAP,
+        createOperator("array_agg", FunctionReturnTypes.ARRAY_OF_ARG0_TYPE, family(SqlTypeFamily.ANY)), 1,
+        "collect_list");
+
+    // Regex functions
+    // regexp_like(str, pattern) -> rlike(str, pattern)
+    createTransformerMapEntry(TRANSFORMER_MAP,
+        createOperator("regexp_like", ReturnTypes.BOOLEAN, STRING_STRING), 2, "rlike");
   }
 
   /**
