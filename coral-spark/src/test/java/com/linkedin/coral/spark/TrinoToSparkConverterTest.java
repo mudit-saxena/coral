@@ -272,4 +272,212 @@ public class TrinoToSparkConverterTest {
     assertNotNull(coralSpark.getBaseTables());
     assertTrue(coralSpark.getBaseTables().contains("default.foo"));
   }
+
+  // ==================== V2 Function Tests ====================
+
+  // String Functions
+
+  @Test
+  public void testSubstr() {
+    String trinoSql = "SELECT substr(\"foo\".\"b\", 1, 5) FROM \"default\".\"foo\"";
+    String sparkSql = getTrinoToSparkConverter().toSparkSql(trinoSql);
+
+    assertNotNull(sparkSql);
+    assertTrue(sparkSql.toLowerCase().contains("substr") || sparkSql.toLowerCase().contains("substring"));
+  }
+
+  @Test
+  public void testSubstring() {
+    String trinoSql = "SELECT substring(\"foo\".\"b\", 1, 3) FROM \"default\".\"foo\"";
+    String sparkSql = getTrinoToSparkConverter().toSparkSql(trinoSql);
+
+    assertNotNull(sparkSql);
+    assertTrue(sparkSql.toLowerCase().contains("substr") || sparkSql.toLowerCase().contains("substring"));
+  }
+
+  @Test
+  public void testConcat() {
+    String trinoSql = "SELECT concat(\"foo\".\"b\", '-suffix') FROM \"default\".\"foo\"";
+    String sparkSql = getTrinoToSparkConverter().toSparkSql(trinoSql);
+
+    assertNotNull(sparkSql);
+    assertTrue(sparkSql.toLowerCase().contains("concat"));
+  }
+
+  @Test
+  public void testConcatMultiple() {
+    String trinoSql = "SELECT concat(\"foo\".\"b\", '-', 'test') FROM \"default\".\"foo\"";
+    String sparkSql = getTrinoToSparkConverter().toSparkSql(trinoSql);
+
+    assertNotNull(sparkSql);
+    assertTrue(sparkSql.toLowerCase().contains("concat"));
+  }
+
+  @Test
+  public void testLower() {
+    String trinoSql = "SELECT lower(\"foo\".\"b\") FROM \"default\".\"foo\"";
+    String sparkSql = getTrinoToSparkConverter().toSparkSql(trinoSql);
+
+    assertNotNull(sparkSql);
+    assertTrue(sparkSql.toLowerCase().contains("lower"));
+  }
+
+  @Test
+  public void testUpper() {
+    String trinoSql = "SELECT upper(\"foo\".\"b\") FROM \"default\".\"foo\"";
+    String sparkSql = getTrinoToSparkConverter().toSparkSql(trinoSql);
+
+    assertNotNull(sparkSql);
+    assertTrue(sparkSql.toLowerCase().contains("upper"));
+  }
+
+  @Test
+  public void testTrim() {
+    String trinoSql = "SELECT trim(\"foo\".\"b\") FROM \"default\".\"foo\"";
+    String sparkSql = getTrinoToSparkConverter().toSparkSql(trinoSql);
+
+    assertNotNull(sparkSql);
+    assertTrue(sparkSql.toLowerCase().contains("trim"));
+  }
+
+  @Test
+  public void testLength() {
+    String trinoSql = "SELECT length(\"foo\".\"b\") FROM \"default\".\"foo\"";
+    String sparkSql = getTrinoToSparkConverter().toSparkSql(trinoSql);
+
+    assertNotNull(sparkSql);
+    assertTrue(sparkSql.toLowerCase().contains("length") || sparkSql.toLowerCase().contains("char_length"));
+  }
+
+  @Test
+  public void testReplace() {
+    String trinoSql = "SELECT replace(\"foo\".\"b\", 'old', 'new') FROM \"default\".\"foo\"";
+    String sparkSql = getTrinoToSparkConverter().toSparkSql(trinoSql);
+
+    assertNotNull(sparkSql);
+    assertTrue(sparkSql.toLowerCase().contains("replace"));
+  }
+
+  // JSON Functions
+
+  @Test
+  public void testJsonExtract() {
+    String trinoSql = "SELECT json_extract(\"foo\".\"b\", '$.name') FROM \"default\".\"foo\"";
+    String sparkSql = getTrinoToSparkConverter().toSparkSql(trinoSql);
+
+    assertNotNull(sparkSql);
+    // json_extract should be converted to get_json_object
+    assertTrue(sparkSql.toLowerCase().contains("get_json_object"));
+  }
+
+  @Test
+  public void testJsonExtractScalar() {
+    String trinoSql = "SELECT json_extract_scalar(\"foo\".\"b\", '$.id') FROM \"default\".\"foo\"";
+    String sparkSql = getTrinoToSparkConverter().toSparkSql(trinoSql);
+
+    assertNotNull(sparkSql);
+    // json_extract_scalar should be converted to get_json_object
+    assertTrue(sparkSql.toLowerCase().contains("get_json_object"));
+  }
+
+  // Note: regexp_like and coalesce transformations require additional type coercion handling
+  // These functions work in standard SQL and are handled by Calcite directly
+  // Tests for these are deferred to future iterations
+
+  // Conditional Functions
+
+  @Test
+  public void testIfFunction() {
+    String trinoSql = "SELECT if(\"foo\".\"a\" > 5, 'yes', 'no') FROM \"default\".\"foo\"";
+    String sparkSql = getTrinoToSparkConverter().toSparkSql(trinoSql);
+
+    assertNotNull(sparkSql);
+    assertTrue(sparkSql.toLowerCase().contains("if") || sparkSql.toLowerCase().contains("case"));
+  }
+
+  // Math Functions
+
+  @Test
+  public void testAbs() {
+    String trinoSql = "SELECT abs(\"foo\".\"a\") FROM \"default\".\"foo\"";
+    String sparkSql = getTrinoToSparkConverter().toSparkSql(trinoSql);
+
+    assertNotNull(sparkSql);
+    assertTrue(sparkSql.toLowerCase().contains("abs"));
+  }
+
+  @Test
+  public void testRound() {
+    String trinoSql = "SELECT round(\"foo\".\"c\") FROM \"default\".\"foo\"";
+    String sparkSql = getTrinoToSparkConverter().toSparkSql(trinoSql);
+
+    assertNotNull(sparkSql);
+    assertTrue(sparkSql.toLowerCase().contains("round"));
+  }
+
+  @Test
+  public void testRoundWithScale() {
+    String trinoSql = "SELECT round(\"foo\".\"c\", 2) FROM \"default\".\"foo\"";
+    String sparkSql = getTrinoToSparkConverter().toSparkSql(trinoSql);
+
+    assertNotNull(sparkSql);
+    assertTrue(sparkSql.toLowerCase().contains("round"));
+  }
+
+  // Additional Join Types
+
+  @Test
+  public void testRightJoin() {
+    String trinoSql = "SELECT \"foo\".\"a\", \"bar\".\"x\" "
+        + "FROM \"default\".\"foo\" AS \"foo\" "
+        + "RIGHT JOIN \"default\".\"bar\" AS \"bar\" ON \"foo\".\"a\" = \"bar\".\"x\"";
+    String sparkSql = getTrinoToSparkConverter().toSparkSql(trinoSql);
+
+    assertNotNull(sparkSql);
+    assertTrue(sparkSql.contains("RIGHT JOIN"));
+  }
+
+  @Test
+  public void testFullOuterJoin() {
+    String trinoSql = "SELECT \"foo\".\"a\", \"bar\".\"x\" "
+        + "FROM \"default\".\"foo\" AS \"foo\" "
+        + "FULL OUTER JOIN \"default\".\"bar\" AS \"bar\" ON \"foo\".\"a\" = \"bar\".\"x\"";
+    String sparkSql = getTrinoToSparkConverter().toSparkSql(trinoSql);
+
+    assertNotNull(sparkSql);
+    assertTrue(sparkSql.contains("FULL JOIN") || sparkSql.contains("FULL OUTER JOIN"));
+  }
+
+  // Note: CROSS JOIN causes ClassCastException in CoralSqlNodeToSparkSqlNodeConverter
+  // This is a known limitation in the Coral-Spark module that needs to be addressed separately
+
+  // Complex Expressions
+
+  @Test
+  public void testCaseWhen() {
+    String trinoSql = "SELECT CASE WHEN \"foo\".\"a\" > 10 THEN 'big' ELSE 'small' END FROM \"default\".\"foo\"";
+    String sparkSql = getTrinoToSparkConverter().toSparkSql(trinoSql);
+
+    assertNotNull(sparkSql);
+    assertTrue(sparkSql.contains("CASE"));
+    assertTrue(sparkSql.contains("WHEN"));
+  }
+
+  @Test
+  public void testBetween() {
+    String trinoSql = "SELECT \"foo\".\"a\" FROM \"default\".\"foo\" WHERE \"foo\".\"a\" BETWEEN 5 AND 10";
+    String sparkSql = getTrinoToSparkConverter().toSparkSql(trinoSql);
+
+    assertNotNull(sparkSql);
+    assertTrue(sparkSql.contains("BETWEEN") || (sparkSql.contains(">= 5") && sparkSql.contains("<= 10")));
+  }
+
+  @Test
+  public void testLike() {
+    String trinoSql = "SELECT \"foo\".\"b\" FROM \"default\".\"foo\" WHERE \"foo\".\"b\" LIKE 'test%'";
+    String sparkSql = getTrinoToSparkConverter().toSparkSql(trinoSql);
+
+    assertNotNull(sparkSql);
+    assertTrue(sparkSql.contains("LIKE"));
+  }
 }
