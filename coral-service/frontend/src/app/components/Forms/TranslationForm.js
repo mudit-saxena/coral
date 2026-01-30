@@ -8,6 +8,7 @@ import { QuestionMarkCircleIcon } from '@heroicons/react/24/outline';
 export default function TranslationForm({
   onTranslationFetchComplete,
   onImageIDsFetchComplete,
+  onCoralIRFetchComplete,
 }) {
   const [isLoading, setIsLoading] = useState(false);
 
@@ -18,16 +19,19 @@ export default function TranslationForm({
     // clear old results
     onTranslationFetchComplete(null, null);
     onImageIDsFetchComplete(null, null);
+    onCoralIRFetchComplete(null, null);
 
     const formData = new FormData(event.currentTarget);
+    const requestBody = Object.fromEntries(formData);
 
+    // Fetch translation
     await fetch(baseUrl + '/api/translations/translate', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
       },
-      body: JSON.stringify(Object.fromEntries(formData)),
+      body: JSON.stringify(requestBody),
     })
       .then((response) => {
         if (!response.ok) {
@@ -35,25 +39,25 @@ export default function TranslationForm({
             throw new Error(errorMessage);
           });
         }
-
-        return response.text();
+        return response.json();
       })
       .then((data) => {
-        onTranslationFetchComplete(data);
+        onTranslationFetchComplete(data, null);
       })
       .catch((error) => {
         console.error('Error:', error);
-        onTranslationFetchComplete(error.message);
+        onTranslationFetchComplete(null, error.message);
         setIsLoading(false);
       });
 
+    // Fetch visualization graphs
     await fetch(baseUrl + '/api/visualizations/generategraphs', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
       },
-      body: JSON.stringify(Object.fromEntries(formData)),
+      body: JSON.stringify(requestBody),
     })
       .then((response) => {
         if (!response.ok) {
@@ -61,15 +65,41 @@ export default function TranslationForm({
             throw new Error(errorMessage);
           });
         }
-
         return response.json();
       })
       .then((data) => {
         onImageIDsFetchComplete(data, null);
-        setIsLoading(false);
       })
       .catch((error) => {
         onImageIDsFetchComplete(null, error.message);
+      });
+
+    // Fetch Coral IR text
+    await fetch(baseUrl + '/api/coral-ir/text', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        query: requestBody.query,
+        sourceLanguage: requestBody.sourceLanguage,
+      }),
+    })
+      .then((response) => {
+        if (!response.ok) {
+          return response.text().then((errorMessage) => {
+            throw new Error(errorMessage);
+          });
+        }
+        return response.json();
+      })
+      .then((data) => {
+        onCoralIRFetchComplete(data, null);
+        setIsLoading(false);
+      })
+      .catch((error) => {
+        onCoralIRFetchComplete(null, error.message);
         setIsLoading(false);
       });
   }

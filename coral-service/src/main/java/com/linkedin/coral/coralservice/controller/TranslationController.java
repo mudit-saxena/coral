@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.linkedin.coral.coralservice.entity.IncrementalRequestBody;
 import com.linkedin.coral.coralservice.entity.IncrementalResponseBody;
 import com.linkedin.coral.coralservice.entity.TranslateRequestBody;
+import com.linkedin.coral.coralservice.entity.TranslateResponseBody;
 import com.linkedin.coral.coralservice.utils.RewriteType;
 
 import static com.linkedin.coral.coralservice.utils.CommonUtils.*;
@@ -100,16 +101,20 @@ public class TranslationController implements ApplicationListener<ContextRefresh
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(t.getMessage());
     }
 
-    String message;
     if (translatedSql == null) {
-      message = "Translation from " + LANGUAGE_MAP.get(sourceLanguage) + " to " + LANGUAGE_MAP.get(targetLanguage)
+      String message = "Translation from " + LANGUAGE_MAP.get(sourceLanguage) + " to " + LANGUAGE_MAP.get(targetLanguage)
           + " is not currently supported."
           + " Coral-Service only supports translation from Hive to Trino/Spark, or translation from Trino to Spark.\n";
-    } else {
-      message = "Original query in " + LANGUAGE_MAP.get(sourceLanguage) + ":\n" + query + "\n" + "Translated to "
-          + LANGUAGE_MAP.get(targetLanguage) + ":\n" + translatedSql + "\n";
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
     }
-    return ResponseEntity.status(HttpStatus.OK).body(message);
+
+    TranslateResponseBody responseBody = new TranslateResponseBody();
+    responseBody.setOriginalQuery(query);
+    responseBody.setTranslatedQuery(translatedSql);
+    responseBody.setSourceLanguage(LANGUAGE_MAP.get(sourceLanguage));
+    responseBody.setTargetLanguage(LANGUAGE_MAP.get(targetLanguage));
+
+    return ResponseEntity.status(HttpStatus.OK).body(responseBody);
   }
 
   @PostMapping("/api/incremental/rewrite")

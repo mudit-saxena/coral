@@ -17,11 +17,15 @@ import com.linkedin.coral.incremental.RelNodeIncrementalTransformer;
 import com.linkedin.coral.transformers.CoralRelToSqlNodeConverter;
 import com.linkedin.coral.trino.trino2rel.TrinoToRelConverter;
 import com.linkedin.coral.vis.VisualizationUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static com.linkedin.coral.coralservice.utils.CoralProvider.*;
 
 
 public class VisualizationUtils {
+
+  Logger _logger = LoggerFactory.getLogger(VisualizationUtils.class);
 
   public static File getImageDir() {
     return new File(System.getProperty("java.io.tmpdir") + "/images" + UUID.randomUUID());
@@ -33,6 +37,8 @@ public class VisualizationUtils {
 
     // Always generate the pre/no rewrite images first
     RelNode relNode = getRelNode(query, sourceLanguage);
+    _logger.info(relNode.toString());
+
     UUID relNodeID = generateRelNodeVisualization(relNode, imageDir);
     imageIDList.add(relNodeID);
 
