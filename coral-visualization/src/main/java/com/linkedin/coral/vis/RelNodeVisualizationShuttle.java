@@ -47,6 +47,13 @@ public class RelNodeVisualizationShuttle extends RelShuttleImpl {
   @Override
   public RelNode visit(LogicalAggregate aggregate) {
     super.visit(aggregate);
+    String aggInfo = "Aggregate: " + aggregate.getAggCallList().toString();
+    if (aggregate.getGroupSet() != null && !aggregate.getGroupSet().isEmpty()) {
+      aggInfo += "\nGroup by: " + aggregate.getGroupSet().toString();
+    }
+    Node aggregateNode = node(aggInfo);
+    Node input = nodeMap.get(aggregate.getInput());
+    nodeMap.put(aggregate, aggregateNode.link(input));
     return aggregate;
   }
 
@@ -152,18 +159,37 @@ public class RelNodeVisualizationShuttle extends RelShuttleImpl {
   @Override
   public RelNode visit(LogicalIntersect intersect) {
     super.visit(intersect);
+    Node intersectNode = node("Intersect");
+    List<LinkTarget> edges = new ArrayList<>();
+    for (RelNode input : intersect.getInputs()) {
+      edges.add(edge(input, ""));
+    }
+    nodeMap.put(intersect, intersectNode.link(edges.toArray(new LinkTarget[0])));
     return intersect;
   }
 
   @Override
   public RelNode visit(LogicalMinus minus) {
     super.visit(minus);
+    Node minusNode = node("Minus");
+    List<LinkTarget> edges = new ArrayList<>();
+    for (RelNode input : minus.getInputs()) {
+      edges.add(edge(input, ""));
+    }
+    nodeMap.put(minus, minusNode.link(edges.toArray(new LinkTarget[0])));
     return minus;
   }
 
   @Override
   public RelNode visit(LogicalSort sort) {
     super.visit(sort);
+    String sortInfo = "Sort";
+    if (sort.getCollation() != null && !sort.getCollation().getFieldCollations().isEmpty()) {
+      sortInfo += ": " + sort.getCollation().toString();
+    }
+    Node sortNode = node(sortInfo);
+    Node input = nodeMap.get(sort.getInput());
+    nodeMap.put(sort, sortNode.link(input));
     return sort;
   }
 
